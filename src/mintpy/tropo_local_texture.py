@@ -53,7 +53,7 @@ def estimate_local_slope(dem, ts_data, inps, n_ref, meta):
     # w2 = 2 * int(truncate * sigma + 0.5) + 1
     truncate = ((w2 - 1)/2 - 0.5)/w1 # truncation factor for gaussian filter
     
-    lamda = int(meta['WAVELENGTH'])
+    lamda = float(meta['WAVELENGTH'])
     ref_y = int(meta['REF_Y'])
     ref_x = int(meta['REF_X'])
     
@@ -257,7 +257,7 @@ def intercept_filtering(dem, ts_data, inps, k_htc_interp, meta):
     truncate_intercept = ((w_intercept - 1)/2 - 0.5)/sigma_intercept # truncation factor for gaussian filter    
     ref_y = int(meta['REF_Y'])
     ref_x = int(meta['REF_X'])
-    lamda = int(meta['WAVELENGTH'])
+    lamda = float(meta['WAVELENGTH'])
     N, Na, Nr = ts_data.shape
 
     ts_data = 4 * np.pi / lamda * ts_data[:N, :, :]
@@ -301,7 +301,7 @@ def run_tropo_local_texture(inps):
     
     # intercept filtering
     ts_htc_low = intercept_filtering(dem, ts_data, inps, k_htc_interp, ts_obj.metadata)
-    lamda = ts_obj.metadata['WAVELENGTH']
+    lamda = float(ts_obj.metadata['WAVELENGTH'])
     ts_htc_data = lamda / 4 /np.pi * ts_htc_low
     
     # write corrected time-series file
