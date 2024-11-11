@@ -620,12 +620,12 @@ class TimeSeriesAnalysis:
 
     def run_tropospheric_delay_correction(self, step_name):
         """Correct tropospheric delays."""
-        #TODO
         geom_file = ut.check_loaded_dataset(self.workDir, print_msg=False)[1]
-        #geom_file = os.path.join(self.workDir, 'inputs/geometryGeo.h5')
         mask_file = os.path.join(self.workDir, 'maskTempCoh.h5')
+        #For test only
+        #geom_file = os.path.join(self.workDir, 'inputs/geometryGeo.h5')
         #mask_file = os.path.join(self.workDir, 'temporalCoherence.h5')
-
+        
         fnames = self.get_timeseries_filename(self.template, self.workDir)[step_name]
         in_file = fnames['input']
         out_file = fnames['output']
@@ -634,7 +634,7 @@ class TimeSeriesAnalysis:
             tropo_model = self.template['mintpy.troposphericDelay.weatherModel'].upper()
             weather_dir = self.template['mintpy.troposphericDelay.weatherDir']
             method      = self.template['mintpy.troposphericDelay.method']
-
+            
             def get_dataset_size(fname):
                 atr = readfile.read_attribute(fname)
                 return (atr['LENGTH'], atr['WIDTH'])
