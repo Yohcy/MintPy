@@ -6,10 +6,10 @@
 
 
 import os
+
 import numpy as np
 import scipy
-from scipy.interpolate import griddata
-from scipy.interpolate import UnivariateSpline
+from scipy.interpolate import UnivariateSpline, griddata
 
 from mintpy.objects import timeseries
 from mintpy.utils import readfile, writefile
@@ -40,10 +40,10 @@ def estimate_local_slope(dem, ts_data, inps, n_ref, meta):
                 inps    : Namespace
                 n_ref   : Index of reference SAR image in timeseries
                 meta    : Metadata of timeseries
-    Returns:    k_htc   : 3D array in size of (num_date, length, width), length and width depend on the window size and overlap ratio  
+    Returns:    k_htc   : 3D array in size of (num_date, length, width), length and width depend on the window size and overlap ratio
     """
 
-    """Filtering parameters for obtaining high-frequency texture"""
+    # Filtering parameters for obtaining high-frequency texture
     w1 = 9  # slope filtering parameters used in gaussian filter
     w2 = 13 # texture correlation filtering parameters used in gaussian filter
     res_step = 0.5 # step size for mask updating
@@ -52,11 +52,11 @@ def estimate_local_slope(dem, ts_data, inps, n_ref, meta):
     step = 0.0001 # step size for slope searching
     # w2 = 2 * int(truncate * sigma + 0.5) + 1
     truncate = ((w2 - 1)/2 - 0.5)/w1 # truncation factor for gaussian filter
-    
+
     lamda = float(meta['WAVELENGTH'])
     ref_y = int(meta['REF_Y'])
     ref_x = int(meta['REF_X'])
-    
+
     N, Na, Nr = ts_data.shape
     W = inps.windowsize
     w = (W-1)/2 # half window size
@@ -69,11 +69,11 @@ def estimate_local_slope(dem, ts_data, inps, n_ref, meta):
 
     Na_C = np.arange(w + 1, Na + 1, 2 * w - overlap)
     Nr_C = np.arange(w + 1, Nr + 1, 2 * w - overlap)
-    
+
     k_LLF = np.zeros((N, len(Na_C), len(Nr_C)))  # LLF: slope values in spatially discrete distributions
     d_LLF = np.zeros((N, len(Na_C), len(Nr_C)))  # LLF: intercept values in spatially discrete distributions
     k_htc = np.zeros((N, len(Na_C), len(Nr_C)))  # HTC: slope values in spatially discrete distributions
-    
+
     ts_data = 4 * np.pi / lamda * ts_data[:N, :, :]
     reference_value = ts_data[:, ref_y-1, ref_x-1]
     ts_data = ts_data - reference_value[:, np.newaxis, np.newaxis]
@@ -98,7 +98,7 @@ def estimate_local_slope(dem, ts_data, inps, n_ref, meta):
             U = int(U)
             D = int(D)
             L = int(L)
-            R = int(R)    
+            R = int(R)
             tmp = np.full((Na, Nr), np.nan)
             tmp[U-1:D, L-1:R] = 1
             mask_process = mask.copy()
@@ -116,7 +116,7 @@ def estimate_local_slope(dem, ts_data, inps, n_ref, meta):
                 # iterative linear fitting
                 # res+step = 0.5 # step [rad]
                 # Iteration = 10
-                for iter in range(Iteration):
+                for i in range(Iteration):
                     # linear fitting
                     phase_tmp = ts_data[n, :, :] * mask_std
                     dem_tmp = dem * mask_std
@@ -127,10 +127,10 @@ def estimate_local_slope(dem, ts_data, inps, n_ref, meta):
                     cor_tmp = phase_tmp - coe[0]*dem_tmp - coe[1]
 
                     # result recording
-                    if iter == 0:
+                    if i == 0:
                         result_compare[n, 0] = coe[0]
                         result_compare[n, 3] = coe[1]
-                    
+
                     # mask uploading
                     max_tmp = np.nanmax(np.abs(cor_tmp)) #TODO
                     max_tmp = np.where(max_tmp > res_step, max_tmp - res_step, max_tmp)
@@ -139,15 +139,15 @@ def estimate_local_slope(dem, ts_data, inps, n_ref, meta):
                     if np.nansum(~np.isnan(mask_std)) < np.nansum(~np.isnan(mask_process)) / 10: #TODO
                         break
 
-                # ----------- texture correlation ----------- #        
+                # ----------- texture correlation ----------- #
                 mask_tmp = mask[U-1:D, L-1:R]
-                
+
                 A = dem[U-1:D, L-1:R]
                 A_LP = scipy.ndimage.gaussian_filter(A, sigma=w1, truncate=truncate, mode='nearest')
                 A = A - A_LP
                 A_line = A[~np.isnan(mask_tmp)]
                 A_line = A_line / np.linalg.norm(A_line)
-                
+
                 # range = 40
                 # step = 0.0001
                 # left
@@ -180,7 +180,7 @@ def estimate_local_slope(dem, ts_data, inps, n_ref, meta):
                     k = np.arange(-rg, 1) * step + coe[0]
                     record = np.zeros(len(k))
 
-                for i in range(0, len(k)):
+                for i in enumerate(k):
                     phase_ts_Scor_tmp = ts_data[n, :, :] - k[i] * dem
                     C = phase_ts_Scor_tmp[U-1:D, L-1:R]
                     C[np.isnan(C)] = 0
@@ -196,7 +196,7 @@ def estimate_local_slope(dem, ts_data, inps, n_ref, meta):
                 index = np.argmin(record)
                 result_compare[n, 1] = coe[0]
                 result_compare[n, 2] = k[index]
-            
+
             # result recording
             k_LLF[:, na, nr] = result_compare[:, 0]
             d_LLF[:, na, nr] = result_compare[:, 3]
@@ -208,7 +208,7 @@ def slope_interpolation(ts_data, inps, k_htc):
     Parameters: ts_data : 3D array in size of (num_date, length, width)
                 inps    : Namespace
                 k_htc   : 3D array in size of (num_date, length, width), length and width depend on the window size and overlap ratio
-    Returns:    k_htc_interp   : 3D array in size of (num_date, length, width)  
+    Returns:    k_htc_interp   : 3D array in size of (num_date, length, width)
     """
 
     """Filtering parameters for obtaining high-frequency texture correlation"""
@@ -228,16 +228,17 @@ def slope_interpolation(ts_data, inps, k_htc):
         k_htc_filt = scipy.ndimage.gaussian_filter(k_htc[n, :, :], sigma=sigma_slope, truncate=truncate_slope, mode='nearest')
         # interpolation
         result = np.zeros((Na, Nr))
-        coords = Na_C - 1
+        coords_y = Na_C - 1
+        coords_x = Nr_C - 1
         # Row interpolation
         for i in range(k_htc_filt.shape[0]):
-            spline_x = UnivariateSpline(coords, k_htc_filt[i, :], k=3, s=0)
+            spline_x = UnivariateSpline(coords_x, k_htc_filt[i, :], k=3, s=0)
             result[i, :] = spline_x(np.arange(0, Nr))
         # Column interpolation
         for j in range(Nr):
-            spline_y = UnivariateSpline(coords, result[:k_htc_filt.shape[0], j], k=3, s=0)
+            spline_y = UnivariateSpline(coords_y, result[:k_htc_filt.shape[0], j], k=3, s=0)
             result[:, j] = spline_y(np.arange(0, Na))
-        
+
         k_htc_interp[n] = result
     return k_htc_interp
 
@@ -248,17 +249,17 @@ def intercept_filtering(dem, ts_data, inps, k_htc_interp, meta):
                 inps    : Namespace
                 k_htc_interp : 3D array in size of (num_date, length, width)
                 meta    : Metadata of timeseries
-    Returns:    phase_ts_htc_low   : 3D array in size of (num_date, length, width)  
+    Returns:    phase_ts_htc_low   : 3D array in size of (num_date, length, width)
     """
 
-    """Filtering parameters for obtaining high-frequency texture correlation"""
+    # Filtering parameters for obtaining high-frequency texture correlation
     sigma_intercept = 251 # standard deviation for gaussian filter
     w_intercept = 251 # window size for gaussian filter
-    truncate_intercept = ((w_intercept - 1)/2 - 0.5)/sigma_intercept # truncation factor for gaussian filter    
+    truncate_intercept = ((w_intercept - 1)/2 - 0.5)/sigma_intercept # truncation factor for gaussian filter
     ref_y = int(meta['REF_Y'])
     ref_x = int(meta['REF_X'])
     lamda = float(meta['WAVELENGTH'])
-    N, Na, Nr = ts_data.shape
+    N = ts_data.shape[0]
 
     ts_data = 4 * np.pi / lamda * ts_data[:N, :, :]
     reference_value = ts_data[:, ref_y-1, ref_x-1]
@@ -273,11 +274,11 @@ def intercept_filtering(dem, ts_data, inps, k_htc_interp, meta):
         tmp = tmp - tmp_filt
         phase_ts_htc_low[n, :, :] = tmp
         intercept[n, :, :] = tmp_filt
-    reference_phase = phase_ts_htc_low[:, ref_y - 1, ref_x - 1]   
+    reference_phase = phase_ts_htc_low[:, ref_y - 1, ref_x - 1]
     phase_ts_htc_low = phase_ts_htc_low - reference_phase[:, np.newaxis, np.newaxis] #TODO
 
     return phase_ts_htc_low
-    
+
 
 ############################################################################
 
@@ -295,21 +296,21 @@ def run_tropo_local_texture(inps):
 
     # slope estimation
     k_htc = estimate_local_slope(dem, ts_data, inps, n_ref, ts_obj.metadata)
-    
+
     # slope interpolation
     k_htc_interp = slope_interpolation(ts_data, inps, k_htc)
-    
+
     # intercept filtering
     ts_htc_low = intercept_filtering(dem, ts_data, inps, k_htc_interp, ts_obj.metadata)
     lamda = float(ts_obj.metadata['WAVELENGTH'])
     ts_htc_data = lamda / 4 /np.pi * ts_htc_low
-    
+
     # write corrected time-series file
     meta = dict(ts_obj.metadata)
     if not inps.outfile:
         fbase = os.path.splitext(inps.timeseries_file)[0]
         inps.outfile = f'{fbase}_tropolocaltexture.h5'
-    
+
     writefile.write(
         ts_htc_data,
         out_file=inps.outfile,
@@ -318,4 +319,3 @@ def run_tropo_local_texture(inps):
     )
 
     return
-
